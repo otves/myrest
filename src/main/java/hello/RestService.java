@@ -121,25 +121,34 @@ public class RestService {
     }
 
     @RequestMapping("/okpd")
-    public List<Classificator> okpd() throws Exception {
+    public Classificator okpd() throws Exception {
        return okpdTree(null);
     }
 
     @RequestMapping("/okpd/{parentId}")
-    public List<Classificator> okpdTree(@PathVariable(value="parentId") String code) throws Exception {
-        List<Classificator> result = new ArrayList<>();
+    public Classificator okpdTree(@PathVariable(value="parentId") String code) throws Exception {
+        Classificator result = new Classificator();
         try (final Connection db = configJdbc().getConnection()) {
             String query;
             if (code == null) {
                 query = "select * from okpd where parent_id is null order by kod";
             } else {
+                try (final PreparedStatement sql = db.prepareStatement("select * from okpd where clear_kod = '" + code + "'")) {
+                    try (ResultSet resultSet = sql.executeQuery()) {
+                        if (resultSet.next()) {
+                            result = classificator(resultSet);
+                        }
+                    }
+                }
+
                 query = "select * from okpd where parent_kod = '" + code + "' order by kod";
             }
             logger.info("query:" + query);
             try (final PreparedStatement sql = db.prepareStatement(query)) {
                 try (ResultSet resultSet = sql.executeQuery()) {
                     while (resultSet.next()) {
-                        result.add(classificator(resultSet));
+                        result.getChildren().add(classificator(resultSet));
+                        result.setHasChildren(true);
                     }
                 }
             }
