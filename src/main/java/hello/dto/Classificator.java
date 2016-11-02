@@ -18,4 +18,5 @@ public class Classificator {
     String parentCode;
     boolean hasChildren = true;
     List<Classificator> children = new ArrayList<>();
+    List<List<String>> path;
 }

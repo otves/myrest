@@ -122,25 +122,29 @@ public class RestService {
 
     @RequestMapping("/okpd")
     public Classificator okpd() throws Exception {
-       return okpdTree(null);
+        Classificator classificator = okpdTree(null, false);
+        classificator.setCode("okpd");
+        classificator.getChildren().forEach( child -> child.setParentCode("okpd"));
+        return classificator;
     }
 
     @RequestMapping("/okpd/{parentId}")
-    public Classificator okpdTree(@PathVariable(value="parentId") String code) throws Exception {
+    public Classificator okpdTree(@PathVariable(value="parentId") String code,
+                                  @RequestParam(value = "path", required = false) boolean  path) throws Exception {
         Classificator result = new Classificator();
         try (final Connection db = configJdbc().getConnection()) {
             String query;
             if (code == null) {
                 query = "select * from okpd where parent_id is null order by kod";
             } else {
-                try (final PreparedStatement sql = db.prepareStatement("select * from okpd where clear_kod = '" + code + "'")) {
-                    try (ResultSet resultSet = sql.executeQuery()) {
-                        if (resultSet.next()) {
-                            result = classificator(resultSet);
-                        }
-                    }
+                result = okpdBy(code, db);
+                if(path) {
+                    List<List<String>> path1 = Arrays.asList(
+                            Arrays.asList("A", "СЕЛЬСКОЕ, ЛЕСНОЕ ХОЗЯЙСТВО, ОХОТА, РЫБОЛОВСТВО И РЫБОВОДСТВО"),
+                            Arrays.asList("01", "Растениеводство и животноводство, охота и предоставление соответствующих услуг в этих областях"),
+                            Arrays.asList("01.1", "Выращивание однолетних культур"));
+                    result.setPath(path1);
                 }
-
                 query = "select * from okpd where parent_kod = '" + code + "' order by kod";
             }
             logger.info("query:" + query);
@@ -178,6 +182,7 @@ public class RestService {
         classificator.setCode(resultSet.getString("kod"));
         classificator.setName(resultSet.getString("name"));
         classificator.setNotes(resultSet.getString("notes"));
+        classificator.setParentCode(resultSet.getString("parent_kod"));
         int level;
         if (resultSet.getString("subkod2") == null) {
             level = 1;
